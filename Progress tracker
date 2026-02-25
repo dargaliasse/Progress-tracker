@@ -1,0 +1,15 @@
+"""Welcome to my Learning progress tracker 0.01"""
+
+def run_tracker():
+    while True:
+        user_input = input()
+        if user_input == "exit":
+            print("Bye!")
+            return
+        elif not user_input.strip():
+            print("No input")
+        else :
+            print("Unknown command!")
+
+print(f"Learning Progress Tracker")
+run_tracker()
