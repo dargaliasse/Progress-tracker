@@ -1,15 +1,82 @@
-"""Welcome to my Learning progress tracker 0.01"""
+"""Welcome to my Learning progress tracker 0.02"""
+import re
+
+student_list = {}
 
 def run_tracker():
+    print("Learning Progress Tracker")
     while True:
         user_input = input()
+
         if user_input == "exit":
             print("Bye!")
             return
+
+        elif user_input == "add students":
+            status = add_students()
+            if status == "exit":
+                print("Bye!")
+                return
+
+        elif user_input == "back":
+            print("Enter 'exit' to exit the program")
+
         elif not user_input.strip():
             print("No input")
-        else :
+
+        else:
             print("Unknown command!")
 
-print(f"Learning Progress Tracker")
+
+def add_students():
+    email_regex = r"^[A-Za-z0-9._-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$"
+    name_token_regex = r"^[A-Za-z](?:[A-Za-z]|[-'][A-Za-z])*$"
+
+    print("Enter student credentials or 'back' to return.")
+    count = 0
+
+    while True:
+        user_input = input()
+
+
+        if user_input == "back":
+            print(f"Total {count} students were added")
+            return
+
+        if not user_input.strip():
+            print("Incorrect credentials.")
+            continue
+
+        parts = user_input.split()
+        if len(parts) < 3:
+            print("Incorrect credentials.")
+            continue
+
+        first_name = parts[0]
+        last_name_parts = parts[1:-1]
+        email = parts[-1]
+
+        if not re.match(name_token_regex, first_name) or len(first_name.replace("-", "").replace("'", "")) < 2:
+            print("Incorrect first name.")
+            continue
+
+        last_ok = True
+        for token in last_name_parts:
+            if (not re.match(name_token_regex, token)) or (len(token.replace("-", "").replace("'", "")) < 2):
+                last_ok = False
+                break
+        if not last_ok:
+            print("Incorrect last name.")
+            continue
+
+        if not re.match(email_regex, email):
+            print("Incorrect email.")
+            continue
+
+        name = " ".join(parts[:-1])
+        student_list[name] = email
+        print("Student has been added.")
+        count += 1
+
+
 run_tracker()
