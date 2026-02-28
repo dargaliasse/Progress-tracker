@@ -1,34 +1,49 @@
-"""Welcome to my Learning progress tracker 0.02"""
+"""Welcome to my Learning progress tracker 0.01"""
 import re
+import os
+import sqlite3
 
-student_list = {}
+# Initial DB creation using sqlite3. For now, it erases itself every run
+if os.path.exists('tracker.db'):
+    os.remove('tracker.db')
+
+conn = sqlite3.connect('tracker.db')
+cur = conn.cursor()
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS students (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE
+)
+""")
+conn.commit()
+
 
 def run_tracker():
     print("Learning Progress Tracker")
     while True:
-        user_input = input()
+        user_input = input().strip()
 
         if user_input == "exit":
             print("Bye!")
             return
 
         elif user_input == "add students":
-            status = add_students()
-            if status == "exit":
-                print("Bye!")
-                return
+            add_students(cur, conn)
 
         elif user_input == "back":
             print("Enter 'exit' to exit the program")
 
-        elif not user_input.strip():
+        elif not user_input:
             print("No input")
 
         else:
             print("Unknown command!")
 
 
-def add_students():
+# Student get unique id assigned to the database with name and email as value.
+def add_students(cur, conn):
     email_regex = r"^[A-Za-z0-9._-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$"
     name_token_regex = r"^[A-Za-z](?:[A-Za-z]|[-'][A-Za-z])*$"
 
@@ -36,14 +51,13 @@ def add_students():
     count = 0
 
     while True:
-        user_input = input()
-
+        user_input = input().strip()
 
         if user_input == "back":
             print(f"Total {count} students were added")
             return
 
-        if not user_input.strip():
+        if not user_input:
             print("Incorrect credentials.")
             continue
 
@@ -56,27 +70,33 @@ def add_students():
         last_name_parts = parts[1:-1]
         email = parts[-1]
 
-        if not re.match(name_token_regex, first_name) or len(first_name.replace("-", "").replace("'", "")) < 2:
+        if (re.fullmatch(name_token_regex, first_name) is None or
+                len(first_name.replace("-", "").replace("'", "")) < 2):
             print("Incorrect first name.")
             continue
 
-        last_ok = True
         for token in last_name_parts:
-            if (not re.match(name_token_regex, token)) or (len(token.replace("-", "").replace("'", "")) < 2):
-                last_ok = False
+            if (re.fullmatch(name_token_regex, token) is None or
+                    len(token.replace("-", "").replace("'", "")) < 2):
+                print("Incorrect last name.")
                 break
-        if not last_ok:
-            print("Incorrect last name.")
-            continue
+        else:
+            if re.fullmatch(email_regex, email) is None:
+                print("Incorrect email.")
+                continue
 
-        if not re.match(email_regex, email):
-            print("Incorrect email.")
-            continue
+            name = " ".join(parts[:-1])
 
-        name = " ".join(parts[:-1])
-        student_list[name] = email
-        print("Student has been added.")
-        count += 1
+            try:
+                cur.execute(
+                    "INSERT INTO students (name, email) VALUES (?, ?)",
+                    (name, email)
+                )
+                conn.commit()
+                print("valid!")
+                count += 1
+            except sqlite3.IntegrityError:
+                print("This email is already taken.")
 
 
 run_tracker()
