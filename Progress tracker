@@ -1,48 +1,73 @@
 """Welcome to my Learning progress tracker 0.01"""
 import re
-import os
 import sqlite3
 
-# Initial DB creation using sqlite3. For now, it erases itself every run
-if os.path.exists('tracker.db'):
-    os.remove('tracker.db')
 
-conn = sqlite3.connect('tracker.db')
-cur = conn.cursor()
+def init_db():
+    conn = sqlite3.connect("tracker.db", timeout=10)
+    cur = conn.cursor()
 
-cur.execute("""
-CREATE TABLE IF NOT EXISTS students (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE
-)
-""")
-conn.commit()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS students (
+        student_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        python INTEGER DEFAULT 0,
+        dsa INTEGER DEFAULT 0,
+        databases INTEGER DEFAULT 0,
+        flask INTEGER DEFAULT 0
+    )
+    """)
+
+    cur.execute("DELETE FROM students")
+    cur.execute("DELETE FROM sqlite_sequence WHERE name='students'")
+    conn.commit()
+
+    return conn, cur
 
 
 def run_tracker():
+    conn, cur = init_db()
     print("Learning Progress Tracker")
-    while True:
-        user_input = input().strip()
 
-        if user_input == "exit":
-            print("Bye!")
-            return
+    try:
+        while True:
+            user_input = input().strip()
 
-        elif user_input == "add students":
-            add_students(cur, conn)
+            if user_input == "exit":
+                print("Bye!")
+                return
 
-        elif user_input == "back":
-            print("Enter 'exit' to exit the program")
+            elif user_input == "back":
+                print("Enter 'exit' to exit the program")
 
-        elif not user_input:
-            print("No input")
+            elif user_input == "add students":
+                add_students(cur, conn)
 
-        else:
-            print("Unknown command!")
+            elif user_input == "list":
+                list_students(cur)
+
+            elif user_input == "find":
+                find(cur)
+
+            elif user_input == "add points":
+                add_points(cur, conn)
+
+            elif user_input == "find":
+                list_students(cur)
+                print(
+                    "Enter a student id to find their points or 'back' to return."
+                )
+
+            elif not user_input:
+                print("No input")
+
+            else:
+                print("Unknown command!")
+    finally:
+        conn.close()
 
 
-# Student get unique id assigned to the database with name and email as value.
 def add_students(cur, conn):
     email_regex = r"^[A-Za-z0-9._-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$"
     name_token_regex = r"^[A-Za-z](?:[A-Za-z]|[-'][A-Za-z])*$"
@@ -93,10 +118,101 @@ def add_students(cur, conn):
                     (name, email)
                 )
                 conn.commit()
-                print("valid!")
+                print("Student has been added.")
                 count += 1
             except sqlite3.IntegrityError:
                 print("This email is already taken.")
+
+
+def list_students(cur):
+    rows = cur.execute(
+        "SELECT student_id FROM students ORDER BY student_id"
+    ).fetchall()
+
+    if not rows:
+        print("No students found.")
+        return
+
+    print("Students:")
+    for (student_id,) in rows:
+        print(student_id)
+
+def find(cur):
+    print("Enter a student id to find their points or 'back' to return.")
+
+    while True:
+        user_input = input().strip()
+
+        if user_input == "back":
+            return
+
+        if not user_input.isdigit():
+            print(f"No student is found for id={user_input}")
+            continue
+
+        student_id = user_input
+
+        cur.execute("""
+            SELECT python, dsa, databases, flask
+            FROM students
+            WHERE student_id = ?
+        """, (student_id,))
+        row = cur.fetchone()
+
+        if row is None:
+            print(f"No student is found for id={student_id}")
+        else:
+            python_pts, dsa_pts, db_pts, flask_pts = row
+            print(f"{student_id} points: Python={python_pts}; DSA={dsa_pts}; Databases={db_pts}; Flask={flask_pts}")
+
+
+def add_points(cur, conn):
+    print("Enter an id and points or 'back' to return:")
+
+    while True:
+        user_input = input().strip()
+
+        if user_input == "back":
+            return
+
+        parts = user_input.split()
+
+        if len(parts) != 5:
+            print("Incorrect points format.")
+            continue
+
+        student_id, p1, p2, p3, p4 = parts
+
+        # must be integers, and (for this project) non-negative
+        try:
+            p1 = int(p1)
+            p2 = int(p2)
+            p3 = int(p3)
+            p4 = int(p4)
+        except ValueError:
+            print("Incorrect points format.")
+            continue
+
+        if p1 < 0 or p2 < 0 or p3 < 0 or p4 < 0:
+            print("Incorrect points format.")
+            continue
+
+        cur.execute("SELECT 1 FROM students WHERE student_id = ?", (student_id,))
+        if cur.fetchone() is None:
+            print(f"No student is found for id={student_id}")
+            continue
+
+        cur.execute("""
+            UPDATE students
+            SET python = python + ?,
+                dsa = dsa + ?,
+                databases = databases + ?,
+                flask = flask + ?
+            WHERE student_id = ?
+        """, (p1, p2, p3, p4, student_id))
+
+        conn.commit()
+        print("Points updated.")
 
 
 run_tracker()
